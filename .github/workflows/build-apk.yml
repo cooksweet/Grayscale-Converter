@@ -57,7 +57,7 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_FILE }}
         run: |
           # 把 Base64 字符串解码，还原成 .keystore 文件，放在 android/app/ 下
-          echo $KEYSTORE_BASE64 | base64 -d > frontend/android/app/my-app-key.keystore
+          echo $KEYSTORE_BASE64 | base64 -d > frontend/android/app/android.keystore
 
       # ---------- 步骤 7：告诉 Gradle（Android 的构建工具）签名信息 ----------
       - name: 7️⃣ 配置签名密码
