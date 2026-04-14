@@ -1,0 +1,85 @@
+# ------------------------------------------------------------
+# 1. 工作流的名字：会显示在 GitHub Actions 的列表里
+# ------------------------------------------------------------
+name: 打包 Android APK（不使用 EAS）
+
+# ------------------------------------------------------------
+# 2. 触发条件：什么时候让机器人开始干活
+# ------------------------------------------------------------
+on:
+  # workflow_dispatch 表示允许我们手动点击按钮触发
+  workflow_dispatch:
+
+# ------------------------------------------------------------
+# 3. jobs：定义机器人要干的具体活儿
+# ------------------------------------------------------------
+jobs:
+  # 活儿1：构建安卓APK，名字可以随便取，这里叫 build-android
+  build-android:
+    # 3.1 运行在什么操作系统上：ubuntu-latest 是 GitHub 提供的最新版 Ubuntu 虚拟机
+    runs-on: ubuntu-latest
+
+    # 3.2 steps：干活的具体步骤，按顺序执行
+    steps:
+      # ---------- 步骤 1：把 GitHub 仓库里的代码下载到虚拟机里 ----------
+      - name: 1️⃣ 下载代码
+        uses: actions/checkout@v4
+
+      # ---------- 步骤 2：安装 Node.js 环境（因为 Expo 项目需要） ----------
+      - name: 2️⃣ 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x # 指定 Node.js 的大版本号
+          cache: 'npm'       # 开启缓存，下次打包更快
+          cache-dependency-path: './frontend/package-lock.json'
+
+      # ---------- 步骤 3：安装 Java JDK（Android 打包必须用 Java） ----------
+      - name: 3️⃣ 安装 Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'        # Java 版本
+          distribution: 'temurin'   # 发行版，temurin 是推荐的免费版本
+
+      # ---------- 步骤 4：安装 Android SDK（提供 Android 打包工具链） ----------
+      - name: 4️⃣ 安装 Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # 指定需要下载的 SDK 平台版本，34 对应 Android 14
+          packages: 'platforms;android-34'
+
+      # ---------- 步骤 5：安装项目依赖（比如 react, expo 等） ----------
+      - name: 5️⃣ 安装 npm 依赖
+        run: npm install   # 如果你用 yarn，这里改成 yarn install
+        working-directory: ./frontend
+
+      # ---------- 步骤 6：把签名文件从 Secret 恢复到虚拟机里 ----------
+      - name: 6️⃣ 恢复签名文件
+        env:
+          # 从 GitHub Secrets 里读取之前保存的 Base64 字符串
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_FILE }}
+        run: |
+          # 把 Base64 字符串解码，还原成 .keystore 文件，放在 android/app/ 下
+          echo $KEYSTORE_BASE64 | base64 -d > frontend/android/app/my-app-key.keystore
+
+      # ---------- 步骤 7：告诉 Gradle（Android 的构建工具）签名信息 ----------
+      - name: 7️⃣ 配置签名密码
+        run: |
+          # 这些信息会被写入 android/gradle.properties 文件，Gradle 会自动读取
+          echo "MYAPP_UPLOAD_STORE_FILE=my-app-key.keystore" >> android/gradle.properties
+          echo "MYAPP_UPLOAD_KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> android/gradle.properties
+          echo "MYAPP_UPLOAD_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> android/gradle.properties
+          echo "MYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> android/gradle.properties
+
+      # ---------- 步骤 8：真正开始打包 APK ----------
+      - name: 8️⃣ 构建 Release APK
+        run: |
+          cd android                  # 进入安卓项目目录
+          ./gradlew assembleRelease   # 执行打包命令，生成正式版 APK
+
+      # ---------- 步骤 9：把打包好的 APK 上传，供我们下载 ----------
+      - name: 9️⃣ 上传 APK 文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk       # 下载后的压缩包名字
+          # 这是 APK 生成后的存放路径，一般固定是这个
+          path: android/app/build/outputs/apk/release/app-release.apk
