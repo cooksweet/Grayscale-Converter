@@ -49,9 +49,15 @@ jobs:
       # ---------- 步骤 5：安装项目依赖（比如 react, expo 等） ----------
       - name: 5️⃣ 安装 npm 依赖
         run: npm install   # 如果你用 yarn，这里改成 yarn install
+          # ========== 新增：生成原生 Android 项目 ==========
+      - name: 6️⃣ 清理旧的 android 目录（确保全新生成）
+        run: rm -rf android ios
 
+      - name: 7️⃣ 运行 expo prebuild（将配置写入原生代码）
+        run: npx expo prebuild --platform android --clean
+          # ==============================================
       # ---------- 步骤 6：把签名文件从 Secret 恢复到虚拟机里 ----------
-      - name: 6️⃣ 恢复签名文件
+      - name: 8、恢复签名文件
         env:
           # 从 GitHub Secrets 里读取之前保存的 Base64 字符串
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_FILE }}
@@ -60,7 +66,7 @@ jobs:
           echo $KEYSTORE_BASE64 | base64 -d > android/app/android.keystore
 
       # ---------- 步骤 7：告诉 Gradle（Android 的构建工具）签名信息 ----------
-      - name: 7️⃣ 配置签名密码
+      - name: 9、配置签名密码
         run: |
           # 这些信息会被写入 android/gradle.properties 文件，Gradle 会自动读取
           echo "MYAPP_UPLOAD_STORE_FILE=android.keystore" >> android/gradle.properties
@@ -69,14 +75,14 @@ jobs:
           echo "MYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> android/gradle.properties
 
       # ---------- 步骤 8：真正开始打包 APK ----------
-      - name: 8️⃣ 构建 Release APK
+      - name: 10、构建 Release APK
         run: |
           cd android                  # 进入安卓项目目录
           chmod +x gradlew             # 赋予执行权限
           ./gradlew assembleRelease   # 执行打包命令，生成正式版 APK
 
       # ---------- 步骤 9：把打包好的 APK 上传，供我们下载 ----------
-      - name: 9️⃣ 上传 APK 文件
+      - name: 11、 上传 APK 文件
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk       # 下载后的压缩包名字
