@@ -20,7 +20,8 @@
           "savePhotosPermission": "允许 $(PRODUCT_NAME) 保存灰度图片到您的相册。",
           "isAccessMediaLocationEnabled": true
         }
-      ]
+      ],
+      "expo-build-properties"
     ],
     "ios": {
       "supportsTablet": true,
