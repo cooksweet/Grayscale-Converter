@@ -72,6 +72,7 @@ jobs:
       - name: 8️⃣ 构建 Release APK
         run: |
           cd android                  # 进入安卓项目目录
+          chmod +x gradlew             # 赋予执行权限
           ./gradlew assembleRelease   # 执行打包命令，生成正式版 APK
 
       # ---------- 步骤 9：把打包好的 APK 上传，供我们下载 ----------
